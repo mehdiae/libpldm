@@ -217,6 +217,7 @@ static pldm_requester_rc_t pldm_transport_af_mctp_send(struct pldm_transport *t,
 
 		addr.smctp_family = AF_MCTP;
 		addr.smctp_addr.s_addr = eid;
+		addr.smctp_addr.smctp_network = 2; //temporary
 		addr.smctp_type = MCTP_MSG_TYPE_PLDM;
 		addr.smctp_tag = MCTP_TAG_OWNER;
 	}
