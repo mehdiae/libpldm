@@ -31,11 +31,14 @@ struct pldm_responder_cookie_af_mctp {
 #define cookie_to_af_mctp(c)                                                   \
 	container_of((c), struct pldm_responder_cookie_af_mctp, req)
 
+
+
 #define AF_MCTP_NAME "AF_MCTP"
 struct pldm_transport_af_mctp {
 	struct pldm_transport transport;
 	int socket;
 	pldm_tid_t tid_eid_map[MCTP_MAX_NUM_EID];
+	eid_network_t eid_network_map[MCTP_MAX_NUM_EID];
 	struct pldm_socket_sndbuf socket_send_buf;
 	bool bound;
 	struct pldm_responder_cookie cookie_jar;
@@ -84,13 +87,21 @@ static int pldm_transport_af_mctp_get_tid(struct pldm_transport_af_mctp *ctx,
 	}
 	return -1;
 }
-
+static int pldm_transport_af_mctp_get_network(struct pldm_transport_af_mctp *ctx,
+					  mctp_eid_t eid, eid_network_t *network)
+{
+	if (ctx->eid_network_map[eid] != 0) {
+		*network = ctx->eid_network_map[eid];
+		return 0;
+	}
+	return -1;
+}
 LIBPLDM_ABI_STABLE
 int pldm_transport_af_mctp_map_tid(struct pldm_transport_af_mctp *ctx,
-				   pldm_tid_t tid, mctp_eid_t eid)
+				   pldm_tid_t tid, mctp_eid_t eid, eid_network_t network)
 {
 	ctx->tid_eid_map[eid] = tid;
-
+	ctx->eid_network_map[eid] = network;
 	return 0;
 }
 
@@ -100,7 +111,7 @@ int pldm_transport_af_mctp_unmap_tid(struct pldm_transport_af_mctp *ctx,
 				     mctp_eid_t eid)
 {
 	ctx->tid_eid_map[eid] = 0;
-
+	ctx->eid_network_map[eid] = 0;
 	return 0;
 }
 
@@ -109,7 +120,7 @@ static pldm_requester_rc_t pldm_transport_af_mctp_recv(struct pldm_transport *t,
 						       void **pldm_msg,
 						       size_t *msg_len)
 {
-	struct pldm_transport_af_mctp *af_mctp = transport_to_af_mctp(t);
+    struct pldm_transport_af_mctp *af_mctp = transport_to_af_mctp(t);
 	struct sockaddr_mctp addr = { 0 };
 	socklen_t addrlen = sizeof(addr);
 	struct pldm_msg_hdr *hdr;
@@ -132,7 +143,7 @@ static pldm_requester_rc_t pldm_transport_af_mctp_recv(struct pldm_transport *t,
 	length = recvfrom(af_mctp->socket, msg, length, MSG_TRUNC,
 			  (struct sockaddr *)&addr, &addrlen);
 	if (length < (ssize_t)sizeof(struct pldm_msg_hdr)) {
-		res = PLDM_REQUESTER_INVALID_RECV_LEN;
+    res = PLDM_REQUESTER_INVALID_RECV_LEN;
 		goto cleanup_msg;
 	}
 
@@ -184,7 +195,7 @@ static pldm_requester_rc_t pldm_transport_af_mctp_send(struct pldm_transport *t,
 						       const void *pldm_msg,
 						       size_t msg_len)
 {
-	struct pldm_transport_af_mctp *af_mctp = transport_to_af_mctp(t);
+  struct pldm_transport_af_mctp *af_mctp = transport_to_af_mctp(t);
 	const struct pldm_msg_hdr *hdr;
 	struct sockaddr_mctp addr = { 0 };
 
@@ -212,12 +223,16 @@ static pldm_requester_rc_t pldm_transport_af_mctp_send(struct pldm_transport *t,
 	} else {
 		mctp_eid_t eid = 0;
 		if (pldm_transport_af_mctp_get_eid(af_mctp, tid, &eid)) {
+
 			return PLDM_REQUESTER_SEND_FAIL;
 		}
-
+		eid_network_t net = 0;
+		if (pldm_transport_af_mctp_get_network(af_mctp,eid,&net)){
+			return PLDM_REQUESTER_SEND_FAIL;
+		}
 		addr.smctp_family = AF_MCTP;
 		addr.smctp_addr.s_addr = eid;
-		addr.smctp_network = 2; //temporary
+		addr.smctp_network = net; 
 		addr.smctp_type = MCTP_MSG_TYPE_PLDM;
 		addr.smctp_tag = MCTP_TAG_OWNER;
 	}
