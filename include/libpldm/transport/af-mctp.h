@@ -11,7 +11,7 @@ extern "C" {
 
 struct pldm_transport_af_mctp;
 struct sockaddr_mctp;
-
+typedef uint8_t eid_network_t;
 /* Init the transport backend */
 int pldm_transport_af_mctp_init(struct pldm_transport_af_mctp **ctx);
 
@@ -31,7 +31,7 @@ int pldm_transport_af_mctp_init_pollfd(struct pldm_transport *t,
 
 /* Inserts a TID-to-EID mapping into the transport's device map */
 int pldm_transport_af_mctp_map_tid(struct pldm_transport_af_mctp *ctx,
-				   pldm_tid_t tid, mctp_eid_t eid);
+				   pldm_tid_t tid, mctp_eid_t eid, eid_network_t network);
 
 /* Removes a TID-to-EID mapping from the transport's device map */
 int pldm_transport_af_mctp_unmap_tid(struct pldm_transport_af_mctp *ctx,
